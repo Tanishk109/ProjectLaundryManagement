@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laundry Management System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Login Page -->
+        <div id="login-page" class="page active">
+            <div class="login-container">
+                <div class="login-box">
+                    <h1>Laundry Manager</h1>
+                    <p class="subtitle">Track. Manage. Complete.</p>
+                    
+                    <form id="login-form" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" placeholder="Enter your email" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" placeholder="Enter your password" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="role">Role</label>
+                            <select id="role" required>
+                                <option value="">Select Role</option>
+                                <option value="admin">Admin</option>
+                                <option value="customer">Customer</option>
+                                <option value="employee">Employee</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </form>
+                    
+                    <div class="demo-accounts">
+                        <p class="demo-title">Demo Accounts:</p>
+                        <button type="button" class="demo-btn" onclick="fillDemoAdmin()">Admin</button>
+                        <button type="button" class="demo-btn" onclick="fillDemoCustomer()">Customer</button>
+                        <button type="button" class="demo-btn" onclick="fillDemoEmployee()">Employee</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="admin-page" class="page">
+            <header class="header">
+                <div class="header-content">
+                    <h1>Admin Dashboard</h1>
+                    <div class="header-actions">
+                        <span id="admin-user" class="user-info"></span>
+                        <button class="btn btn-small" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="admin-layout">
+                <nav class="sidebar">
+                    <ul class="nav-menu">
+                        <li><a href="#" onclick="showAdminSection('overview')" class="nav-item active">Overview</a></li>
+                        <li><a href="#" onclick="showAdminSection('machines')" class="nav-item">Machines</a></li>
+                        <li><a href="#" onclick="showAdminSection('customers')" class="nav-item">Customers</a></li>
+                        <li><a href="#" onclick="showAdminSection('employees')" class="nav-item">Employees</a></li>
+                        <li><a href="#" onclick="showAdminSection('bookings')" class="nav-item">All Bookings</a></li>
+                        <li><a href="#" onclick="showAdminSection('usage')" class="nav-item">Usage Reports</a></li>
+                    </ul>
+                </nav>
+
+                <main class="content">
+                    <!-- Overview Section -->
+                    <section id="admin-overview" class="section active">
+                        <h2>System Overview</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h3>Total Machines</h3>
+                                <p id="stat-machines" class="stat-number">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Active Bookings</h3>
+                                <p id="stat-bookings" class="stat-number">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Registered Customers</h3>
+                                <p id="stat-customers" class="stat-number">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Staff Members</h3>
+                                <p id="stat-employees" class="stat-number">0</p>
+                            </div>
+                        </div>
+
+                        <div class="overview-section">
+                            <h3>Machine Status</h3>
+                            <div id="admin-machine-status" class="machine-grid">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Machines Management -->
+                    <section id="admin-machines" class="section">
+                        <h2>Manage Machines</h2>
+                        <button class="btn btn-primary" onclick="showAddMachineForm()">+ Add Machine</button>
+                        
+                        <form id="add-machine-form" class="form-hidden" onsubmit="handleAddMachine(event)">
+                            <div class="form-row">
+                                <input type="text" placeholder="Machine Name" id="machine-name" required>
+                                <select id="machine-type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="washer">Washer</option>
+                                    <option value="dryer">Dryer</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <input type="number" placeholder="Capacity (kg)" id="machine-capacity" step="0.5" required>
+                                <input type="text" placeholder="Location" id="machine-location" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Machine</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideForms()">Cancel</button>
+                        </form>
+                        
+                        <table id="admin-machines-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Machine ID</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Capacity</th>
+                                    <th>Location</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Customers Management -->
+                    <section id="admin-customers" class="section">
+                        <h2>Customer Management</h2>
+                        <table id="admin-customers-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Employees Management -->
+                    <section id="admin-employees" class="section">
+                        <h2>Employee Management</h2>
+                        <button class="btn btn-primary" onclick="showAddEmployeeForm()">+ Add Employee</button>
+                        
+                        <form id="add-employee-form" class="form-hidden" onsubmit="handleAddEmployee(event)">
+                            <input type="text" placeholder="Full Name" id="emp-name" required>
+                            <input type="email" placeholder="Email" id="emp-email" required>
+                            <input type="tel" placeholder="Phone" id="emp-phone" required>
+                            <input type="password" placeholder="Password" id="emp-password" required>
+                            <button type="submit" class="btn btn-primary">Add Employee</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideForms()">Cancel</button>
+                        </form>
+                        
+                        <table id="admin-employees-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Bookings Management -->
+                    <section id="admin-bookings" class="section">
+                        <h2>All Bookings</h2>
+                        <table id="admin-bookings-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Booking ID</th>
+                                    <th>Customer</th>
+                                    <th>Machine</th>
+                                    <th>Start Time</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Usage Reports -->
+                    <section id="admin-usage" class="section">
+                        <h2>Usage Reports</h2>
+                        <div class="filter-section">
+                            <input type="date" id="usage-date-filter">
+                            <select id="usage-machine-filter">
+                                <option value="">All Machines</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="loadUsageReport()">Generate Report</button>
+                        </div>
+                        <table id="admin-usage-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>User</th>
+                                    <th>Machine</th>
+                                    <th>Weight (kg)</th>
+                                    <th>Cycles</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <!-- Customer Dashboard -->
+        <div id="customer-page" class="page">
+            <header class="header">
+                <div class="header-content">
+                    <h1>My Laundry</h1>
+                    <div class="header-actions">
+                        <span id="customer-user" class="user-info"></span>
+                        <button class="btn btn-small" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="customer-layout">
+                <nav class="sidebar">
+                    <ul class="nav-menu">
+                        <li><a href="#" onclick="showCustomerSection('dashboard')" class="nav-item active">Dashboard</a></li>
+                        <li><a href="#" onclick="showCustomerSection('machines')" class="nav-item">Available Machines</a></li>
+                        <li><a href="#" onclick="showCustomerSection('book')" class="nav-item">Book Machine</a></li>
+                        <li><a href="#" onclick="showCustomerSection('bookings')" class="nav-item">My Bookings</a></li>
+                        <li><a href="#" onclick="showCustomerSection('history')" class="nav-item">Usage History</a></li>
+                        <li><a href="#" onclick="showCustomerSection('notifications')" class="nav-item">Notifications</a></li>
+                    </ul>
+                </nav>
+
+                <main class="content">
+                    <!-- Dashboard -->
+                    <section id="customer-dashboard" class="section active">
+                        <h2>Welcome Back!</h2>
+                        <div class="quick-stats">
+                            <div class="stat-card">
+                                <h4>Current Booking</h4>
+                                <p id="cust-current-booking" class="stat-text">None</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Total Uses</h4>
+                                <p id="cust-total-uses" class="stat-text">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>This Month</h4>
+                                <p id="cust-this-month" class="stat-text">0 kg</p>
+                            </div>
+                        </div>
+
+                        <div class="section-box">
+                            <h3>Machine Availability</h3>
+                            <div id="customer-machine-status" class="machine-grid">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Available Machines -->
+                    <section id="customer-machines" class="section">
+                        <h2>Available Machines</h2>
+                        <div id="customer-machines-list" class="machine-grid">
+                        </div>
+                    </section>
+
+                    <!-- Book Machine -->
+                    <section id="customer-book" class="section">
+                        <h2>Book a Machine</h2>
+                        <form id="customer-book-form" onsubmit="handleCustomerBooking(event)">
+                            <div class="form-group">
+                                <label>Select Machine:</label>
+                                <select id="book-machine-select" required onchange="updateMachineDetails()">
+                                    <option value="">Choose a machine...</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Machine Type:</label>
+                                <p id="book-machine-type" class="form-text">-</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Capacity:</label>
+                                <p id="book-machine-capacity" class="form-text">-</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Location:</label>
+                                <p id="book-machine-location" class="form-text">-</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="book-start-time">Start Time:</label>
+                                <input type="datetime-local" id="book-start-time" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="book-weight">Expected Weight (kg):</label>
+                                <input type="number" id="book-weight" step="0.1" placeholder="e.g., 5.5" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="book-notes">Notes:</label>
+                                <textarea id="book-notes" placeholder="Any special instructions..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Book Now</button>
+                        </form>
+                    </section>
+
+                    <!-- My Bookings -->
+                    <section id="customer-bookings" class="section">
+                        <h2>My Bookings</h2>
+                        <table id="customer-bookings-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Booking ID</th>
+                                    <th>Machine</th>
+                                    <th>Start Time</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Usage History -->
+                    <section id="customer-history" class="section">
+                        <h2>Usage History</h2>
+                        <table id="customer-history-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Machine</th>
+                                    <th>Weight (kg)</th>
+                                    <th>Cycle Type</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Notifications -->
+                    <section id="customer-notifications" class="section">
+                        <h2>Notifications</h2>
+                        <div id="customer-notifications-list" class="notifications-list">
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <!-- Employee Dashboard -->
+        <div id="employee-page" class="page">
+            <header class="header">
+                <div class="header-content">
+                    <h1>Employee Portal</h1>
+                    <div class="header-actions">
+                        <span id="employee-user" class="user-info"></span>
+                        <button class="btn btn-small" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="employee-layout">
+                <nav class="sidebar">
+                    <ul class="nav-menu">
+                        <li><a href="#" onclick="showEmployeeSection('overview')" class="nav-item active">Overview</a></li>
+                        <li><a href="#" onclick="showEmployeeSection('machines')" class="nav-item">Machine Status</a></li>
+                        <li><a href="#" onclick="showEmployeeSection('pending')" class="nav-item">Pending Requests</a></li>
+                        <li><a href="#" onclick="showEmployeeSection('logs')" class="nav-item">Cycle Logs</a></li>
+                        <li><a href="#" onclick="showEmployeeSection('maintenance')" class="nav-item">Maintenance</a></li>
+                    </ul>
+                </nav>
+
+                <main class="content">
+                    <!-- Overview -->
+                    <section id="employee-overview" class="section active">
+                        <h2>Work Overview</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h3>Pending Requests</h3>
+                                <p id="emp-pending-count" class="stat-number">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Active Cycles</h3>
+                                <p id="emp-active-count" class="stat-number">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>In Maintenance</h3>
+                                <p id="emp-maintenance-count" class="stat-number">0</p>
+                            </div>
+                        </div>
+
+                        <div class="section-box">
+                            <h3>Quick Status</h3>
+                            <div id="employee-quick-status" class="machine-grid"></div>
+                        </div>
+                    </section>
+
+                    <!-- Machine Status -->
+                    <section id="employee-machines" class="section">
+                        <h2>Machine Status Management</h2>
+                        <table id="employee-machines-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Machine ID</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Current Status</th>
+                                    <th>Location</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Pending Requests -->
+                    <section id="employee-pending" class="section">
+                        <h2>Pending Requests</h2>
+                        <table id="employee-pending-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th>Customer</th>
+                                    <th>Machine</th>
+                                    <th>Requested Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Cycle Logs -->
+                    <section id="employee-logs" class="section">
+                        <h2>Log Cycle Details</h2>
+                        <form id="employee-log-form" onsubmit="handleCycleLog(event)">
+                            <div class="form-row">
+                                <select id="log-booking-select" required onchange="loadBookingDetails()">
+                                    <option value="">Select Booking...</option>
+                                </select>
+                                <input type="number" id="log-weight" step="0.1" placeholder="Weight (kg)" required>
+                            </div>
+
+                            <div class="form-row">
+                                <select id="log-cycle-type" required>
+                                    <option value="">Cycle Type</option>
+                                    <option value="Normal">Normal</option>
+                                    <option value="Delicate">Delicate</option>
+                                    <option value="Heavy Duty">Heavy Duty</option>
+                                    <option value="Quick">Quick</option>
+                                </select>
+                                <select id="log-temp" required>
+                                    <option value="">Temperature</option>
+                                    <option value="Cold">Cold</option>
+                                    <option value="Warm">Warm</option>
+                                    <option value="Hot">Hot</option>
+                                </select>
+                            </div>
+
+                            <div class="form-row">
+                                <input type="number" id="log-spin" placeholder="Spin Speed (RPM)" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Log Cycle</button>
+                        </form>
+
+                        <h3 style="margin-top: 2rem;">Recent Logs</h3>
+                        <table id="employee-logs-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Log ID</th>
+                                    <th>Booking ID</th>
+                                    <th>Weight (kg)</th>
+                                    <th>Cycle Type</th>
+                                    <th>Temperature</th>
+                                    <th>Spin Speed</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+
+                    <!-- Maintenance -->
+                    <section id="employee-maintenance" class="section">
+                        <h2>Machine Maintenance</h2>
+                        <div class="maintenance-section">
+                            <h3>Mark Machine for Maintenance</h3>
+                            <div class="form-row">
+                                <select id="maintenance-machine-select" required>
+                                    <option value="">Select Machine...</option>
+                                </select>
+                                <button type="button" class="btn btn-warning" onclick="markMaintenance()">Mark as Maintenance</button>
+                            </div>
+                        </div>
+
+                        <h3 style="margin-top: 2rem;">Machines Under Maintenance</h3>
+                        <table id="employee-maintenance-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Machine ID</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Location</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
