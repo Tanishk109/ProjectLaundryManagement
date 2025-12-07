@@ -6,6 +6,11 @@ if (!MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable inside .env.local")
 }
 
+// Log connection status (only in development)
+if (process.env.NODE_ENV !== "production") {
+  console.log("🔌 MongoDB URI configured:", MONGODB_URI.replace(/\/\/.*@/, "//***:***@")) // Hide credentials
+}
+
 interface MongooseCache {
   conn: typeof mongoose | null
   promise: Promise<typeof mongoose> | null

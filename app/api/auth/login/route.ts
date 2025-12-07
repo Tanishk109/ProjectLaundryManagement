@@ -4,14 +4,25 @@ import User from "@/lib/models/User"
 
 export async function POST(request: NextRequest) {
   try {
+    // Connect to database
     await connectDB()
+    console.log("✅ Database connected for login")
+
     const { email, password } = await request.json()
 
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+    }
+
+    // Find user by email and password
     const user = await User.findOne({ email, password }).select("_id customer_id email full_name role phone")
 
     if (!user) {
+      console.log("❌ Login failed: Invalid credentials for", email)
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
+
+    console.log("✅ Login successful for:", user.email)
 
     // Convert to format expected by frontend
     const userResponse = {
@@ -24,8 +35,12 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ user: userResponse })
-  } catch (error) {
-    console.error("Login error:", error)
-    return NextResponse.json({ error: "Database connection failed" }, { status: 500 })
+  } catch (error: any) {
+    console.error("❌ Login error:", error)
+    console.error("Error details:", error.message, error.stack)
+    return NextResponse.json(
+      { error: error.message || "Database connection failed" },
+      { status: 500 }
+    )
   }
 }
