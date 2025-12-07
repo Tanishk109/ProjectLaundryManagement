@@ -271,6 +271,15 @@ export default function LaundryManagementSystem() {
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       })
 
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        console.error("Non-JSON response:", text)
+        alert("Server error: " + (response.statusText || "Unknown error"))
+        return
+      }
+
       const data = await response.json()
       if (response.ok && data.user) {
         // Check if role matches
@@ -282,14 +291,18 @@ export default function LaundryManagementSystem() {
       } else {
         alert(data.error || "Invalid credentials")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error)
-      // Fallback to local state if API fails
-      const user = users.find((u) => u.email === loginEmail && u.role === loginRole)
-      if (user) {
-        setCurrentUser(user)
+      if (error instanceof SyntaxError) {
+        alert("Server returned invalid response. Please try again.")
       } else {
-        alert("Invalid credentials or role mismatch")
+        // Fallback to local state if API fails
+        const user = users.find((u) => u.email === loginEmail && u.role === loginRole)
+        if (user) {
+          setCurrentUser(user)
+        } else {
+          alert("Invalid credentials or role mismatch")
+        }
       }
     }
   }
@@ -489,6 +502,19 @@ function LoginPage({
         }),
       })
 
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        console.error("Non-JSON response:", text)
+        setRegistrationSuccess({
+          success: false,
+          code: null,
+          message: "Server error: " + (response.statusText || "Unknown error"),
+        })
+        return
+      }
+
       const data = await response.json()
       if (response.ok && data.success) {
         setRegistrationSuccess({
@@ -505,10 +531,14 @@ function LoginPage({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email: regEmail, password: regPassword }),
             })
-            const loginData = await loginResponse.json()
-            if (loginResponse.ok && loginData.user) {
-              setCurrentUser(loginData.user)
-              setShowRegister(false)
+            
+            const loginContentType = loginResponse.headers.get("content-type")
+            if (loginContentType && loginContentType.includes("application/json")) {
+              const loginData = await loginResponse.json()
+              if (loginResponse.ok && loginData.user) {
+                setCurrentUser(loginData.user)
+                setShowRegister(false)
+              }
             }
           } catch (loginError) {
             console.error("Auto-login error:", loginError)
@@ -528,13 +558,21 @@ function LoginPage({
           message: data.error || "Registration failed",
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error)
-      setRegistrationSuccess({
-        success: false,
-        code: null,
-        message: "Failed to register. Please try again.",
-      })
+      if (error instanceof SyntaxError) {
+        setRegistrationSuccess({
+          success: false,
+          code: null,
+          message: "Server returned invalid response. Please try again.",
+        })
+      } else {
+        setRegistrationSuccess({
+          success: false,
+          code: null,
+          message: "Failed to register. Please try again.",
+        })
+      }
     }
   }
 

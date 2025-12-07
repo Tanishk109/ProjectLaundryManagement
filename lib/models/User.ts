@@ -44,44 +44,39 @@ const UserSchema = new Schema<IUser>(
 )
 
 // Generate customer_id before save for customers and employees
-UserSchema.pre("save", async function (next) {
+UserSchema.pre("save", async function () {
   if (this.isNew && !this.customer_id) {
-    try {
-      // Get the User model (avoid circular reference)
-      const UserModel = this.constructor as mongoose.Model<IUser>
-      
-      if (this.role === "customer") {
-        let customerId: string
-        let attempts = 0
-        let existing
-        do {
-          customerId = "CUS" + Math.random().toString(36).substring(2, 8).toUpperCase()
-          existing = await UserModel.findOne({ customer_id: customerId })
-          attempts++
-          if (attempts > 10) {
-            return next(new Error("Failed to generate unique customer ID"))
-          }
-        } while (existing)
-        this.customer_id = customerId
-      } else if (this.role === "employee") {
-        let employeeId: string
-        let attempts = 0
-        let existing
-        do {
-          employeeId = "EMP" + Math.random().toString(36).substring(2, 8).toUpperCase()
-          existing = await UserModel.findOne({ customer_id: employeeId })
-          attempts++
-          if (attempts > 10) {
-            return next(new Error("Failed to generate unique employee ID"))
-          }
-        } while (existing)
-        this.customer_id = employeeId
-      }
-    } catch (error: any) {
-      return next(error)
+    // Get the User model (avoid circular reference)
+    const UserModel = this.constructor as mongoose.Model<IUser>
+    
+    if (this.role === "customer") {
+      let customerId: string
+      let attempts = 0
+      let existing
+      do {
+        customerId = "CUS" + Math.random().toString(36).substring(2, 8).toUpperCase()
+        existing = await UserModel.findOne({ customer_id: customerId })
+        attempts++
+        if (attempts > 10) {
+          throw new Error("Failed to generate unique customer ID")
+        }
+      } while (existing)
+      this.customer_id = customerId
+    } else if (this.role === "employee") {
+      let employeeId: string
+      let attempts = 0
+      let existing
+      do {
+        employeeId = "EMP" + Math.random().toString(36).substring(2, 8).toUpperCase()
+        existing = await UserModel.findOne({ customer_id: employeeId })
+        attempts++
+        if (attempts > 10) {
+          throw new Error("Failed to generate unique employee ID")
+        }
+      } while (existing)
+      this.customer_id = employeeId
     }
   }
-  next()
 })
 
 export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema)

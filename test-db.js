@@ -3,7 +3,8 @@ const clientPromise = require("./config/db");
 (async () => {
   try {
     const client = await clientPromise;
-    const db = client.db("laundry_management");
+    // Use database name from connection string (Laundry_Management)
+    const db = client.db("Laundry_Management");
 
     console.log("✅ MongoDB Atlas connected successfully");
     console.log("📂 Database:", db.databaseName);

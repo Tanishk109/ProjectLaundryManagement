@@ -39,7 +39,14 @@ export async function POST(request: NextRequest) {
     await connectDB()
     console.log("✅ Database connected for registration")
 
-    const { email, password, full_name, role, phone } = await request.json()
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 })
+    }
+
+    const { email, password, full_name, role, phone } = body
 
     // Validate required fields
     if (!email || !password || !full_name || !role) {
