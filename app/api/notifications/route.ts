@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
+import connectDB from "@/lib/db"
+import Notification from "@/lib/models/Notification"
 
 // Get notifications for user
 export async function GET(request: NextRequest) {
   try {
+    await connectDB()
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("user_id")
 
@@ -11,12 +13,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
-    const notifications = await query<unknown[]>(
-      "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 20",
-      [userId],
-    )
+    const notifications = await Notification.find({ user_id: userId })
+      .sort({ created_at: -1 })
+      .limit(20)
 
-    return NextResponse.json({ notifications })
+    // Convert to format expected by frontend
+    const notificationsResponse = notifications.map((notif) => ({
+      notification_id: notif._id.toString(),
+      user_id: notif.user_id.toString(),
+      order_id: notif.order_id || null,
+      message: notif.message,
+      type: notif.type,
+      is_read: notif.is_read,
+      created_at: notif.created_at,
+    }))
+
+    return NextResponse.json({ notifications: notificationsResponse })
   } catch (error) {
     console.error("Get notifications error:", error)
     return NextResponse.json({ error: "Database error" }, { status: 500 })
@@ -26,9 +38,10 @@ export async function GET(request: NextRequest) {
 // Mark notification as read
 export async function PATCH(request: NextRequest) {
   try {
+    await connectDB()
     const { notification_id } = await request.json()
 
-    await query("UPDATE notifications SET is_read = TRUE WHERE notification_id = ?", [notification_id])
+    await Notification.findByIdAndUpdate(notification_id, { is_read: true })
 
     return NextResponse.json({ success: true })
   } catch (error) {

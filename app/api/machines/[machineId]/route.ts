@@ -1,13 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
+import connectDB from "@/lib/db"
+import Machine from "@/lib/models/Machine"
 
 // Update machine status
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ machineId: string }> }) {
   try {
+    await connectDB()
     const { machineId } = await params
     const { status } = await request.json()
 
-    await query("UPDATE machines SET status = ? WHERE machine_id = ?", [status, machineId])
+    await Machine.findByIdAndUpdate(machineId, { status })
 
     return NextResponse.json({ success: true })
   } catch (error) {

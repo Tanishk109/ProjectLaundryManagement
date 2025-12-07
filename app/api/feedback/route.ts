@@ -1,49 +1,47 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
-
-interface Feedback {
-  feedback_id: number
-  customer_id: string
-  order_id: string | null
-  rating: number
-  comment: string | null
-  category: "service" | "machine" | "employee" | "general"
-  created_at: string
-  updated_at: string
-}
+import connectDB from "@/lib/db"
+import Feedback from "@/lib/models/Feedback"
+import User from "@/lib/models/User"
+import Order from "@/lib/models/Order"
 
 // Get feedback (with optional filters)
 export async function GET(request: NextRequest) {
   try {
+    await connectDB()
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get("customer_id")
     const orderId = searchParams.get("order_id")
 
-    let sql = `
-      SELECT f.*, u.full_name as customer_name, o.order_id as order_ref
-      FROM feedback f
-      LEFT JOIN users u ON f.customer_id = u.customer_id
-      LEFT JOIN orders o ON f.order_id = o.order_id
-    `
-    const params: string[] = []
-    const conditions: string[] = []
+    const query: any = {}
+    if (customerId) query.customer_id = customerId
+    if (orderId) query.order_id = orderId
 
-    if (customerId) {
-      conditions.push("f.customer_id = ?")
-      params.push(customerId)
-    }
-    if (orderId) {
-      conditions.push("f.order_id = ?")
-      params.push(orderId)
-    }
+    const feedbackList = await Feedback.find(query).sort({ created_at: -1 })
 
-    if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ")
-    }
-    sql += " ORDER BY f.created_at DESC"
+    // Get customer names and order references
+    const customerIds = [...new Set(feedbackList.map((f) => f.customer_id))]
+    const orderIds = [...new Set(feedbackList.map((f) => f.order_id).filter(Boolean))]
 
-    const feedback = await query<Feedback[]>(sql, params)
-    return NextResponse.json({ feedback })
+    const users = await User.find({ customer_id: { $in: customerIds } })
+    const orders = await Order.find({ order_id: { $in: orderIds } })
+
+    const customerMap = new Map(users.map((u) => [u.customer_id, u.full_name]))
+    const orderMap = new Map(orders.map((o) => [o.order_id, o.order_id]))
+
+    // Convert to format expected by frontend
+    const feedbackResponse = feedbackList.map((fb) => ({
+      feedback_id: fb._id.toString(),
+      customer_id: fb.customer_id,
+      order_id: fb.order_id || null,
+      rating: fb.rating,
+      comment: fb.comment || null,
+      category: fb.category,
+      created_at: fb.created_at,
+      customer_name: customerMap.get(fb.customer_id) || "",
+      order_ref: orderMap.get(fb.order_id || "") || null,
+    }))
+
+    return NextResponse.json({ feedback: feedbackResponse })
   } catch (error) {
     console.error("Get feedback error:", error)
     return NextResponse.json({ error: "Database error" }, { status: 500 })
@@ -53,6 +51,7 @@ export async function GET(request: NextRequest) {
 // Create new feedback
 export async function POST(request: NextRequest) {
   try {
+    await connectDB()
     const { customer_id, order_id, rating, comment, category } = await request.json()
 
     // Validate required fields
@@ -67,20 +66,21 @@ export async function POST(request: NextRequest) {
 
     // Check if feedback already exists for this order (if order_id provided)
     if (order_id) {
-      const existingFeedback = await query<Feedback[]>(
-        "SELECT * FROM feedback WHERE customer_id = ? AND order_id = ?",
-        [customer_id, order_id],
-      )
-      if (existingFeedback.length > 0) {
+      const existingFeedback = await Feedback.findOne({ customer_id, order_id })
+      if (existingFeedback) {
         return NextResponse.json({ error: "Feedback already submitted for this order" }, { status: 400 })
       }
     }
 
-    await query(
-      `INSERT INTO feedback (customer_id, order_id, rating, comment, category) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [customer_id, order_id || null, rating, comment || null, category || "general"],
-    )
+    const newFeedback = new Feedback({
+      customer_id,
+      order_id: order_id || undefined,
+      rating,
+      comment: comment || undefined,
+      category: category || "general",
+    })
+
+    await newFeedback.save()
 
     return NextResponse.json({ success: true, message: "Feedback submitted successfully" })
   } catch (error) {
@@ -88,5 +88,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to submit feedback" }, { status: 500 })
   }
 }
-
-

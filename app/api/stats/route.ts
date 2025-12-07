@@ -1,81 +1,73 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
-
-interface CountResult {
-  count: number
-}
+import connectDB from "@/lib/db"
+import Machine from "@/lib/models/Machine"
+import User from "@/lib/models/User"
+import Order from "@/lib/models/Order"
 
 // Get dashboard statistics
 export async function GET(request: NextRequest) {
   try {
+    await connectDB()
     const { searchParams } = new URL(request.url)
     const role = searchParams.get("role")
     const customerId = searchParams.get("customer_id")
 
     if (role === "admin") {
-      const [machines] = await query<CountResult[]>("SELECT COUNT(*) as count FROM machines")
-      const [customers] = await query<CountResult[]>('SELECT COUNT(*) as count FROM users WHERE role = "customer"')
-      const [employees] = await query<CountResult[]>('SELECT COUNT(*) as count FROM users WHERE role = "employee"')
-      const [orders] = await query<CountResult[]>("SELECT COUNT(*) as count FROM orders")
-      const [pendingOrders] = await query<CountResult[]>(
-        'SELECT COUNT(*) as count FROM orders WHERE status = "pending"',
-      )
-      const [activeOrders] = await query<CountResult[]>(
-        'SELECT COUNT(*) as count FROM orders WHERE status IN ("in-progress", "washing", "drying")',
-      )
+      const machines = await Machine.countDocuments()
+      const customers = await User.countDocuments({ role: "customer" })
+      const employees = await User.countDocuments({ role: "employee" })
+      const orders = await Order.countDocuments()
+      const pendingOrders = await Order.countDocuments({ status: "pending" })
+      const activeOrders = await Order.countDocuments({
+        status: { $in: ["in-progress", "washing", "drying"] },
+      })
 
       return NextResponse.json({
-        machines: machines.count,
-        customers: customers.count,
-        employees: employees.count,
-        totalOrders: orders.count,
-        pendingOrders: pendingOrders.count,
-        activeOrders: activeOrders.count,
+        machines,
+        customers,
+        employees,
+        totalOrders: orders,
+        pendingOrders,
+        activeOrders,
       })
     }
 
     if (role === "customer" && customerId) {
-      const [totalOrders] = await query<CountResult[]>("SELECT COUNT(*) as count FROM orders WHERE customer_id = ?", [
-        customerId,
-      ])
-      const [activeOrders] = await query<CountResult[]>(
-        'SELECT COUNT(*) as count FROM orders WHERE customer_id = ? AND status IN ("pending", "in-progress", "washing", "drying")',
-        [customerId],
-      )
-      const [completedOrders] = await query<CountResult[]>(
-        'SELECT COUNT(*) as count FROM orders WHERE customer_id = ? AND status = "completed"',
-        [customerId],
-      )
-      const [totalWeight] = await query<{ total: number }[]>(
-        "SELECT COALESCE(SUM(weight_kg), 0) as total FROM orders WHERE customer_id = ?",
-        [customerId],
-      )
+      const totalOrders = await Order.countDocuments({ customer_id: customerId })
+      const activeOrders = await Order.countDocuments({
+        customer_id: customerId,
+        status: { $in: ["pending", "in-progress", "washing", "drying"] },
+      })
+      const completedOrders = await Order.countDocuments({
+        customer_id: customerId,
+        status: "completed",
+      })
+
+      // Calculate total weight
+      const orders = await Order.find({ customer_id: customerId })
+      const totalWeight = orders.reduce((sum, order) => sum + (order.weight_kg || 0), 0)
 
       return NextResponse.json({
-        totalOrders: totalOrders.count,
-        activeOrders: activeOrders.count,
-        completedOrders: completedOrders.count,
-        totalWeight: totalWeight.total,
+        totalOrders,
+        activeOrders,
+        completedOrders,
+        totalWeight,
       })
     }
 
     if (role === "employee") {
-      const [pendingOrders] = await query<CountResult[]>(
-        'SELECT COUNT(*) as count FROM orders WHERE status = "pending"',
-      )
-      const [activeOrders] = await query<CountResult[]>(
-        'SELECT COUNT(*) as count FROM orders WHERE status IN ("in-progress", "washing", "drying")',
-      )
-      const [readyOrders] = await query<CountResult[]>('SELECT COUNT(*) as count FROM orders WHERE status = "ready"')
-      const [availableMachines] = await query<CountResult[]>(
-        'SELECT COUNT(*) as count FROM machines WHERE status = "available"',
-      )
+      const pendingOrders = await Order.countDocuments({ status: "pending" })
+      const activeOrders = await Order.countDocuments({
+        status: { $in: ["in-progress", "washing", "drying"] },
+      })
+      const readyOrders = await Order.countDocuments({ status: "ready" })
+      const availableMachines = await Machine.countDocuments({ status: "available" })
 
       return NextResponse.json({
-        pendingOrders: pendingOrders.count,
-        activeOrders: activeOrders.count,
-        readyOrders: readyOrders.count,
-        availableMachines: availableMachines.count,
+        pendingOrders,
+        activeOrders,
+        readyOrders,
+        availableMachines,
       })
     }
 

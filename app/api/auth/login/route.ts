@@ -1,30 +1,29 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
-
-interface User {
-  user_id: number
-  customer_id: string | null
-  email: string
-  full_name: string
-  role: "admin" | "customer" | "employee"
-  phone: string
-}
+import connectDB from "@/lib/db"
+import User from "@/lib/models/User"
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB()
     const { email, password } = await request.json()
 
-    const users = await query<User[]>(
-      "SELECT user_id, customer_id, email, full_name, role, phone FROM users WHERE email = ? AND password = ?",
-      [email, password],
-    )
+    const user = await User.findOne({ email, password }).select("_id customer_id email full_name role phone")
 
-    if (users.length === 0) {
+    if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    const user = users[0]
-    return NextResponse.json({ user })
+    // Convert to format expected by frontend
+    const userResponse = {
+      user_id: user._id.toString(),
+      customer_id: user.customer_id || null,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      phone: user.phone || "",
+    }
+
+    return NextResponse.json({ user: userResponse })
   } catch (error) {
     console.error("Login error:", error)
     return NextResponse.json({ error: "Database connection failed" }, { status: 500 })
