@@ -6,6 +6,31 @@
  */
 
 const mongoose = require("mongoose")
+const fs = require("fs")
+const path = require("path")
+
+// Read .env.local file manually (no dotenv dependency needed)
+function loadEnv() {
+  const envPath = path.join(__dirname, "..", ".env.local")
+  if (fs.existsSync(envPath)) {
+    const envFile = fs.readFileSync(envPath, "utf8")
+    envFile.split("\n").forEach((line) => {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith("#")) {
+        const match = trimmed.match(/^([^=]+)=(.*)$/)
+        if (match) {
+          const key = match[1].trim()
+          const value = match[2].trim().replace(/^["']|["']$/g, "") // Remove quotes
+          if (!process.env[key]) {
+            process.env[key] = value
+          }
+        }
+      }
+    })
+  }
+}
+
+loadEnv()
 
 // Import models
 const User = require("../lib/models/User").default
