@@ -754,25 +754,6 @@ function LoginPage({
               <button type="button" className="btn btn-secondary track-order-btn" onClick={() => setShowTracking(true)}>
                 Track Your Order
               </button>
-
-              <div className="demo-accounts">
-                <p className="demo-title">Demo Accounts:</p>
-                <button type="button" className="demo-btn" onClick={() => fillDemo("admin")}>
-                  Admin
-                </button>
-                <button type="button" className="demo-btn" onClick={() => fillDemo("customer")}>
-                  Customer
-                </button>
-                <button type="button" className="demo-btn" onClick={() => fillDemo("employee")}>
-                  Employee
-                </button>
-              </div>
-
-              <div className="demo-tracking-info">
-                <p className="demo-title">Demo Tracking:</p>
-                <p className="demo-hint">Customer ID: CUS7XK9M2</p>
-                <p className="demo-hint">Order ID: ORDM5K8X2A</p>
-              </div>
             </>
           ) : (
             <>
@@ -900,6 +881,94 @@ function AdminDashboard({
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
   const [newMachine, setNewMachine] = useState({ name: "", type: "washer", capacity: "", location: "" })
   const [newEmployee, setNewEmployee] = useState({ name: "", email: "", phone: "", password: "" })
+  const [loading, setLoading] = useState(true)
+  const [bookingFilter, setBookingFilter] = useState<"all" | "pending" | "active" | "completed">("all")
+
+  // Load data from MongoDB when admin logs in
+  useEffect(() => {
+    const loadAdminData = async () => {
+      try {
+        setLoading(true)
+        
+        // Load all users (customers and employees) first
+        let formattedUsers: User[] = []
+        const usersResponse = await fetch("/api/users")
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          if (usersData.users) {
+            // Convert MongoDB format to frontend format
+            formattedUsers = usersData.users.map((u: any, index: number) => ({
+              user_id: index + 1,
+              customer_id: u.customer_id || null,
+              email: u.email,
+              full_name: u.full_name,
+              role: u.role,
+              phone: u.phone || "",
+            }))
+            setUsers(formattedUsers)
+          }
+        }
+
+        // Load all machines
+        let formattedMachines: Machine[] = []
+        const machinesResponse = await fetch("/api/machines")
+        if (machinesResponse.ok) {
+          const machinesData = await machinesResponse.json()
+          if (machinesData.machines) {
+            // Convert MongoDB format to frontend format
+            formattedMachines = machinesData.machines.map((m: any, index: number) => ({
+              machine_id: index + 1,
+              machine_name: m.machine_name,
+              machine_type: m.machine_type,
+              status: m.status,
+              capacity_kg: m.capacity_kg,
+              location: m.location,
+            }))
+            setMachines(formattedMachines)
+          }
+        }
+
+        // Load all orders (after machines are loaded for proper mapping)
+        const ordersResponse = await fetch("/api/orders")
+        if (ordersResponse.ok) {
+          const ordersData = await ordersResponse.json()
+          if (ordersData.orders) {
+            // Convert MongoDB format to frontend format
+            const formattedBookings = ordersData.orders.map((o: any, index: number) => {
+              const customer = formattedUsers.find((u) => u.customer_id === o.customer_id)
+              // Find machine by name (since we have machine_name in the order response)
+              let machineId: number | null = null
+              if (o.machine_name) {
+                const machine = formattedMachines.find((m) => m.machine_name === o.machine_name)
+                machineId = machine ? machine.machine_id : null
+              }
+              return {
+                booking_id: index + 1,
+                order_id: o.order_id,
+                user_id: customer?.user_id || 0,
+                machine_id: machineId,
+                start_time: o.created_at ? new Date(o.created_at).toLocaleString() : new Date().toLocaleString(),
+                end_time: o.actual_completion ? new Date(o.actual_completion).toLocaleString() : undefined,
+                status: o.status || "pending",
+                cycle_duration: 45,
+                weight: o.weight_kg || 0,
+                notes: o.notes || "",
+                assigned_employee: undefined,
+                status_updated_at: o.updated_at ? new Date(o.updated_at).toLocaleString() : undefined,
+              }
+            })
+            setBookings(formattedBookings)
+          }
+        }
+      } catch (error) {
+        console.error("Error loading admin data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAdminData()
+  }, []) // Load once when component mounts
 
   const customers = users.filter((u) => u.role === "customer")
   const employees = users.filter((u) => u.role === "employee")
@@ -907,34 +976,93 @@ function AdminDashboard({
     (b) => b.status === "in-progress" || b.status === "washing" || b.status === "drying",
   )
 
-  const handleAddMachine = (e: React.FormEvent) => {
+  const handleAddMachine = async (e: React.FormEvent) => {
     e.preventDefault()
-    const machine: Machine = {
-      machine_id: machines.length + 1,
-      machine_name: newMachine.name,
-      machine_type: newMachine.type as "washer" | "dryer",
-      status: "available",
-      capacity_kg: Number.parseFloat(newMachine.capacity),
-      location: newMachine.location,
+    try {
+      const response = await fetch("/api/machines", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          machine_name: newMachine.name,
+          machine_type: newMachine.type,
+          capacity_kg: Number.parseFloat(newMachine.capacity),
+          location: newMachine.location,
+        }),
+      })
+
+      if (response.ok) {
+        alert("Machine added successfully!")
+        // Reload machines
+        const machinesResponse = await fetch("/api/machines")
+        if (machinesResponse.ok) {
+          const machinesData = await machinesResponse.json()
+          if (machinesData.machines) {
+            const formattedMachines = machinesData.machines.map((m: any, index: number) => ({
+              machine_id: index + 1,
+              machine_name: m.machine_name,
+              machine_type: m.machine_type,
+              status: m.status,
+              capacity_kg: m.capacity_kg,
+              location: m.location,
+            }))
+            setMachines(formattedMachines)
+          }
+        }
+        setNewMachine({ name: "", type: "washer", capacity: "", location: "" })
+        setShowMachineForm(false)
+      } else {
+        const data = await response.json()
+        alert(data.error || "Failed to add machine")
+      }
+    } catch (error) {
+      console.error("Error adding machine:", error)
+      alert("Failed to add machine. Please try again.")
     }
-    setMachines([...machines, machine])
-    setNewMachine({ name: "", type: "washer", capacity: "", location: "" })
-    setShowMachineForm(false)
   }
 
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault()
-    const emp: User = {
-      user_id: users.length + 1,
-      customer_id: "EMP" + String(users.filter((u) => u.role === "employee").length + 1).padStart(3, "0"),
-      email: newEmployee.email,
-      full_name: newEmployee.name,
-      role: "employee",
-      phone: newEmployee.phone,
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newEmployee.email,
+          password: newEmployee.password,
+          full_name: newEmployee.name,
+          role: "employee",
+          phone: newEmployee.phone,
+        }),
+      })
+
+      const data = await response.json()
+      if (response.ok && data.success) {
+        alert("Employee added successfully! Employee ID: " + data.customer_id)
+        // Reload users to get the new employee
+        const usersResponse = await fetch("/api/users")
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          if (usersData.users) {
+            const formattedUsers = usersData.users.map((u: any, index: number) => ({
+              user_id: index + 1,
+              customer_id: u.customer_id || null,
+              email: u.email,
+              full_name: u.full_name,
+              role: u.role,
+              phone: u.phone || "",
+            }))
+            setUsers(formattedUsers)
+          }
+        }
+        setNewEmployee({ name: "", email: "", phone: "", password: "" })
+        setShowEmployeeForm(false)
+      } else {
+        alert(data.error || "Failed to add employee")
+      }
+    } catch (error) {
+      console.error("Error adding employee:", error)
+      alert("Failed to add employee. Please try again.")
     }
-    setUsers([...users, emp])
-    setNewEmployee({ name: "", email: "", phone: "", password: "" })
-    setShowEmployeeForm(false)
   }
 
   const updateMachineStatus = (id: number, status: Machine["status"]) => {
@@ -944,6 +1072,59 @@ function AdminDashboard({
   const removeEmployee = (id: number) => {
     if (confirm("Remove this employee?")) {
       setUsers(users.filter((u) => u.user_id !== id))
+    }
+  }
+
+  // Accept/Approve order
+  const handleAcceptOrder = async (orderId: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "in-progress",
+        }),
+      })
+
+      if (response.ok) {
+        alert("Order accepted and moved to in-progress!")
+        // Reload bookings
+        const ordersResponse = await fetch("/api/orders")
+        if (ordersResponse.ok) {
+          const ordersData = await ordersResponse.json()
+          if (ordersData.orders) {
+            const formattedBookings = ordersData.orders.map((o: any, index: number) => {
+              const customer = users.find((u) => u.customer_id === o.customer_id)
+              let machineId: number | null = null
+              if (o.machine_name) {
+                const machine = machines.find((m) => m.machine_name === o.machine_name)
+                machineId = machine ? machine.machine_id : null
+              }
+              return {
+                booking_id: index + 1,
+                order_id: o.order_id,
+                user_id: customer?.user_id || 0,
+                machine_id: machineId,
+                start_time: o.created_at ? new Date(o.created_at).toLocaleString() : new Date().toLocaleString(),
+                end_time: o.actual_completion ? new Date(o.actual_completion).toLocaleString() : undefined,
+                status: o.status || "pending",
+                cycle_duration: 45,
+                weight: o.weight_kg || 0,
+                notes: o.notes || "",
+                assigned_employee: undefined,
+                status_updated_at: o.updated_at ? new Date(o.updated_at).toLocaleString() : undefined,
+              }
+            })
+            setBookings(formattedBookings)
+          }
+        }
+      } else {
+        const data = await response.json()
+        alert(data.error || "Failed to accept order")
+      }
+    } catch (error) {
+      console.error("Error accepting order:", error)
+      alert("Failed to accept order. Please try again.")
     }
   }
 
@@ -1142,9 +1323,13 @@ function AdminDashboard({
             </section>
           )}
 
-          {section === "customers" && (
+          {!loading && section === "customers" && (
             <section className="section-content">
               <h2>Customer Management</h2>
+              <p className="section-desc">View all registered customers and their details</p>
+              {customers.length === 0 ? (
+                <p className="empty-message">No customers found</p>
+              ) : (
               <table className="data-table">
                 <thead>
                   <tr>
@@ -1173,10 +1358,11 @@ function AdminDashboard({
                   ))}
                 </tbody>
               </table>
+              )}
             </section>
           )}
 
-          {section === "employees" && (
+          {!loading && section === "employees" && (
             <section className="section-content">
               <h2>Employee Management</h2>
               <button className="btn btn-primary btn-add" onClick={() => setShowEmployeeForm(!showEmployeeForm)}>
@@ -1257,10 +1443,47 @@ function AdminDashboard({
             </section>
           )}
 
-          {section === "bookings" && (
+          {!loading && section === "bookings" && (
             <section className="section-content">
-              <h2>All Bookings</h2>
-              <table className="data-table">
+              <h2>All Order Requests</h2>
+              <p className="section-desc">View all orders across the system</p>
+              {bookings.length === 0 ? (
+                <p className="empty-message">No orders found</p>
+              ) : (
+                <>
+                  <div style={{ marginBottom: "1rem", display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+                    <div>
+                      <strong>Pending Orders:</strong> {bookings.filter((b) => b.status === "pending").length} |{" "}
+                      <strong>Total Orders:</strong> {bookings.length}
+                    </div>
+                    <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem" }}>
+                      <button
+                        className={`btn btn-small ${bookingFilter === "all" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setBookingFilter("all")}
+                      >
+                        All
+                      </button>
+                      <button
+                        className={`btn btn-small ${bookingFilter === "pending" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setBookingFilter("pending")}
+                      >
+                        Pending ({bookings.filter((b) => b.status === "pending").length})
+                      </button>
+                      <button
+                        className={`btn btn-small ${bookingFilter === "active" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setBookingFilter("active")}
+                      >
+                        Active
+                      </button>
+                      <button
+                        className={`btn btn-small ${bookingFilter === "completed" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setBookingFilter("completed")}
+                      >
+                        Completed
+                      </button>
+                    </div>
+                  </div>
+                  <table className="data-table">
                 <thead>
                   <tr>
                     <th>Order ID</th>
@@ -1271,10 +1494,25 @@ function AdminDashboard({
                     <th>Weight</th>
                     <th>Status</th>
                     <th>Assigned To</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.map((booking) => {
+                  {bookings
+                    .filter((b) => {
+                      if (bookingFilter === "pending") return b.status === "pending"
+                      if (bookingFilter === "active")
+                        return b.status === "in-progress" || b.status === "washing" || b.status === "drying"
+                      if (bookingFilter === "completed") return b.status === "completed"
+                      return true
+                    })
+                    .sort((a, b) => {
+                      // Sort pending orders first
+                      if (a.status === "pending" && b.status !== "pending") return -1
+                      if (a.status !== "pending" && b.status === "pending") return 1
+                      return 0
+                    })
+                    .map((booking) => {
                     const customer = users.find((u) => u.user_id === booking.user_id)
                     const machine = machines.find((m) => m.machine_id === booking.machine_id)
                     const employee = users.find((u) => u.user_id === booking.assigned_employee)
@@ -1284,25 +1522,41 @@ function AdminDashboard({
                           <code className="order-id-code">{booking.order_id}</code>
                         </td>
                         <td>
-                          <code className="customer-id-code">{customer?.customer_id}</code>
+                          <code className="customer-id-code">{customer?.customer_id || "N/A"}</code>
                         </td>
                         <td>{customer?.full_name || "Unknown"}</td>
-                        <td>{machine?.machine_name || "Unknown"}</td>
+                        <td>{machine?.machine_name || "Not assigned"}</td>
                         <td>{booking.start_time}</td>
                         <td>{booking.weight || "-"} kg</td>
                         <td>
                           <span className={`status-badge status-${booking.status}`}>{booking.status}</span>
                         </td>
                         <td>{employee?.full_name || "-"}</td>
+                        <td>
+                          {booking.status === "pending" && (
+                            <button
+                              className="btn btn-small btn-primary"
+                              onClick={() => handleAcceptOrder(booking.order_id)}
+                              style={{ marginRight: "0.5rem" }}
+                            >
+                              Accept
+                            </button>
+                          )}
+                          {booking.status !== "pending" && booking.status !== "completed" && booking.status !== "cancelled" && (
+                            <span className="status-badge status-active">Active</span>
+                          )}
+                        </td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
+                </>
+              )}
             </section>
           )}
 
-          {section === "usage" && (
+          {!loading && section === "usage" && (
             <section className="section-content">
               <h2>Usage Reports</h2>
               <div className="filter-section">

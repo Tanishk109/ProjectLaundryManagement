@@ -9,7 +9,8 @@
     "start": "next start",
     "seed": "node scripts/seed-mongodb.js",
     "test-db": "node test-db.js",
-    "test-api": "node test-login-register.js"
+    "test-api": "node test-login-register.js",
+    "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

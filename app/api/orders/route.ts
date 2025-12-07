@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
       id: order._id.toString(),
       order_id: order.order_id,
       customer_id: order.customer_id,
-      machine_id: order.machine_id ? (typeof order.machine_id === "object" ? order.machine_id._id.toString() : order.machine_id) : null,
+      machine_id: order.machine_id ? (typeof order.machine_id === "object" ? order.machine_id._id.toString() : String(order.machine_id)) : null,
+      machine_mongo_id: order.machine_id ? (typeof order.machine_id === "object" ? order.machine_id._id.toString() : String(order.machine_id)) : null,
       weight_kg: order.weight_kg,
       cycle_type: order.cycle_type,
       temp_setting: order.temp_setting,
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
       status: order.status,
       notes: order.notes || "",
       created_at: order.created_at,
+      updated_at: order.updated_at,
       customer_name: customerMap.get(order.customer_id) || "",
       machine_name: order.machine_id && typeof order.machine_id === "object" ? order.machine_id.machine_name : "",
     }))

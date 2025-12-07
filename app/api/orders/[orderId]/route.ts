@@ -39,7 +39,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (user) {
         const statusMessages: Record<string, string> = {
           pending: "Your order has been received",
-          "in-progress": "Your laundry is being processed",
+          "in-progress": "Your order has been accepted and is being processed",
+          approved: "Your order has been approved",
           washing: "Your laundry is currently being washed",
           drying: "Your laundry is now in the dryer",
           ready: "Your laundry is ready for pickup!",
