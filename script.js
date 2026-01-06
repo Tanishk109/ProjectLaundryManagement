@@ -133,19 +133,19 @@ function handleLogin(event) {
 
 function fillDemoAdmin() {
   document.getElementById("email").value = "admin@laundry.com"
-  document.getElementById("password").value = "admin123"
+  document.getElementById("password").value = ""
   document.getElementById("role").value = "admin"
 }
 
 function fillDemoCustomer() {
-  document.getElementById("email").value = "john@student.com"
-  document.getElementById("password").value = "pass123"
+  document.getElementById("email").value = "customer@laundry.com"
+  document.getElementById("password").value = ""
   document.getElementById("role").value = "customer"
 }
 
 function fillDemoEmployee() {
-  document.getElementById("email").value = "emp@laundry.com"
-  document.getElementById("password").value = "emp123"
+  document.getElementById("email").value = "employee@laundry.com"
+  document.getElementById("password").value = ""
   document.getElementById("role").value = "employee"
 }
 
